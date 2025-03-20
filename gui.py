@@ -3,7 +3,7 @@ import check_paginacion  # Importamos la funcionalidad
 import check_libros  # Nueva funcionalidad para comprobar libros
 
 # Variable global para el archivo PDF
-pdf_file = "biblia_prueba.pdf"
+pdf_file = "biblia_prueba3.pdf"
 
 def update_ui(text):
     """Actualiza la interfaz gráfica con mensajes de estado."""
@@ -35,14 +35,10 @@ def mostrar_paginacion():
     btn_start.pack(pady=10)
 
     # Área de texto con scroll para mostrar resultados
-    frame_result = Frame(ventana)
-    frame_result.pack(pady=10, fill=BOTH, expand=True)
-    scrollbar = Scrollbar(frame_result)
-    scrollbar.pack(side=RIGHT, fill=Y)
-    global result_text
-    result_text = Text(frame_result, height=15, width=100, yscrollcommand=scrollbar.set)
-    result_text.pack(fill=BOTH, expand=True)
-    scrollbar.config(command=result_text.yview)
+    agregar_area_resultados()
+
+    # Botón de Volver SIEMPRE visible
+    agregar_boton_volver()
 
 def comprobar_paginacion():
     """Función para comprobar la paginación."""
@@ -80,14 +76,10 @@ def mostrar_libros():
     btn_check_libros.pack(pady=10)
     
     # Área de texto con scroll para mostrar resultados
-    frame_result = Frame(ventana)
-    frame_result.pack(pady=10, fill=BOTH, expand=True)
-    scrollbar = Scrollbar(frame_result)
-    scrollbar.pack(side=RIGHT, fill=Y)
-    global result_text
-    result_text = Text(frame_result, height=15, width=100, yscrollcommand=scrollbar.set)
-    result_text.pack(fill=BOTH, expand=True)
-    scrollbar.config(command=result_text.yview)
+    agregar_area_resultados()
+
+    # Botón de Volver SIEMPRE visible
+    agregar_boton_volver()
 
 def comprobar_libros():
     """Función para comprobar los libros de la Biblia."""
@@ -101,6 +93,25 @@ def comprobar_libros():
             result_text.insert(END, f"{issue}\n")
     else:
         result_text.insert(END, "Todos los libros están correctos.\n")
+
+def agregar_area_resultados():
+    """Agrega la caja de texto con scroll para mostrar resultados."""
+    frame_result = Frame(ventana)
+    frame_result.pack(pady=10, fill=BOTH, expand=True)
+
+    scrollbar = Scrollbar(frame_result)
+    scrollbar.pack(side=RIGHT, fill=Y)
+
+    global result_text
+    result_text = Text(frame_result, height=15, width=100, yscrollcommand=scrollbar.set)
+    result_text.pack(fill=BOTH, expand=True)
+
+    scrollbar.config(command=result_text.yview)
+
+def agregar_boton_volver():
+    """Agrega el botón de volver, asegurando que siempre esté visible."""
+    btn_volver = Button(ventana, text="Volver", font=("Arial", 12), command=pantalla_principal)
+    btn_volver.pack(side=BOTTOM, fill=X, pady=10)
 
 def limpiar_pantalla():
     """Elimina todos los widgets de la pantalla para mostrar una nueva vista."""

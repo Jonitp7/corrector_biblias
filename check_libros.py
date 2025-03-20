@@ -28,7 +28,8 @@ def check_bible_books(pdf_path, versiculo_inicio, update_ui=None):
         incidents = []
         number_format = None
         versiculo_format = None
-        size_tolerance = 3  # Margen de tolerancia para el tamaño de fuente
+        size_tolerance_chapter = 3  # Tolerancia para tamaño de capítulo
+        size_tolerance_verse = 5  # Tolerancia para tamaño de versículo
         found_creation = None  # Guardará la posición más alta de "La Creación"
 
         # Buscar "La Creación" en la primera página
@@ -53,43 +54,30 @@ def check_bible_books(pdf_path, versiculo_inicio, update_ui=None):
                     font_size = span["size"]
                     font_name = span["font"]
                     color = span["color"]
+                    x_position = span["origin"][0]
                     y_position = span["origin"][1]
                     
-                    # Verificar si encontramos un "1" debajo de "La Creación"
-                    if text == "1" and found_creation is not None and y_position > found_creation:
-                        numbers.append((text, y_position, font_size, font_name, color))
+                    # Detectar números de capítulo
+                    if text.isdigit():
+                        numbers.append((text, x_position, y_position, font_size, font_name, color))
                     
                     # Detectar posibles números de versículo
                     if text.isdigit():
-                        versiculos.append((text, y_position, font_size, font_name, color))
+                        versiculos.append((text, x_position, y_position, font_size, font_name, color))
         
         if numbers:
-            numbers.sort(key=lambda x: -x[2])  # Ordenar por tamaño de fuente descendente
+            numbers.sort(key=lambda x: -x[3])  # Ordenar por tamaño de fuente descendente
             top_number = numbers[0]  # El número más grande
-            number_format = {"size": top_number[2], "font": top_number[3], "color": top_number[4]}
+            number_format = {"size": top_number[3], "font": top_number[4], "color": top_number[5]}
             
             if update_ui:
                 update_ui(f"📖 Página 1: Detectado capítulo 1 con formato {number_format}\n")
             
-            # Seleccionar el número de versículo más cercano al número de capítulo
-            closest_versiculo = None
-            min_distance = float("inf")
-            
-            for v in versiculos:
-                if versiculo_inicio == "si" and v[0] == "1" and v[2] < top_number[2] * 0.7:
-                    distance = abs(v[1] - top_number[1])  # Distancia en posición vertical
-                    if distance < min_distance:
-                        min_distance = distance
-                        closest_versiculo = v
-                elif versiculo_inicio == "no" and v[0] == "2" and v[2] < top_number[2] * 0.7:
-                    distance = abs(v[1] - top_number[1])
-                    if distance < min_distance:
-                        min_distance = distance
-                        closest_versiculo = v
-            
-            if closest_versiculo:
-                versiculo_format = {"size": closest_versiculo[2], "font": closest_versiculo[3], "color": closest_versiculo[4]}
-                update_ui(f"📖 Página 1: Detectado versículo {closest_versiculo[0]} con formato {versiculo_format}\n")
+            # Determinar el formato de versículos basándose en los más comunes
+            if versiculos:
+                versiculos.sort(key=lambda x: x[3])  # Ordenar por tamaño de fuente ascendente
+                versiculo_format = {"size": versiculos[0][3], "font": versiculos[0][4], "color": versiculos[0][5]}
+                update_ui(f"📖 Formato de referencia de versículo: {versiculo_format}\n")
         
         # Ahora recorremos todo el documento buscando capítulos y versículos con este formato
         if number_format and versiculo_format:
@@ -98,7 +86,7 @@ def check_bible_books(pdf_path, versiculo_inicio, update_ui=None):
                 text_info = page.get_text("dict")
                 found_numbers = []
                 found_verses = []
-
+                
                 for block in text_info.get("blocks", []):
                     for line in block.get("lines", []):
                         for span in line.get("spans", []):
@@ -106,29 +94,38 @@ def check_bible_books(pdf_path, versiculo_inicio, update_ui=None):
                             font_size = span["size"]
                             font_name = span["font"]
                             color = span["color"]
+                            x_position = span["origin"][0]
                             y_position = span["origin"][1]
 
-                            # Comparar números de capítulos
+                            # Comparar números de capítulos con tolerancia específica
                             if (text.isdigit() and 
-                                abs(font_size - number_format["size"]) <= size_tolerance and 
+                                abs(font_size - number_format["size"]) <= size_tolerance_chapter and 
                                 font_name == number_format["font"] and 
                                 color == number_format["color"]):
-                                found_numbers.append((text, y_position))
+                                found_numbers.append((text, x_position, y_position))
 
-                            # Comparar números de versículos
+                            # Comparar números de versículos con tolerancia específica
                             if (text.isdigit() and 
-                                abs(font_size - versiculo_format["size"]) <= size_tolerance and 
+                                abs(font_size - versiculo_format["size"]) <= size_tolerance_verse and 
                                 font_name == versiculo_format["font"] and 
                                 color == versiculo_format["color"]):
-                                found_verses.append((text, y_position))
-
+                                found_verses.append((text, x_position, y_position))
+                
+                # Ordenar versículos en el orden correcto: primero izquierda, luego derecha
+                mid_x = page.rect.width / 2
+                left_verses = [v for v in found_verses if v[1] < mid_x]
+                right_verses = [v for v in found_verses if v[1] >= mid_x]
+                left_verses.sort(key=lambda v: v[2])  # Ordenar por Y (de arriba a abajo)
+                right_verses.sort(key=lambda v: v[2])  # Ordenar por Y (de arriba a abajo)
+                sorted_verses = left_verses + right_verses
+                
                 if not found_numbers:
                     incidents.append(f"❌ Página {page_number + 1}: No se encontraron números de capítulo con el formato esperado.")
                 if not found_verses:
                     incidents.append(f"❌ Página {page_number + 1}: No se encontraron números de versículo con el formato esperado.")
-
+                
                 if update_ui:
-                    update_ui(f"✔ Página {page_number + 1}: Capítulos detectados {found_numbers}, Versículos detectados {found_verses}\n")
+                    update_ui(f"✔ Página {page_number + 1}: Capítulos detectados {found_numbers}, Versículos detectados {sorted_verses}\n")
 
         if update_ui:
             update_ui("✅ Proceso completado.\n")
