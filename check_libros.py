@@ -4,6 +4,14 @@ import time  # Para simular carga
 import unicodedata  # Para normalizar texto
 import json  # Para manejar los datos de versículos
 
+def color_a_hex(color_int):
+    """Convierte un color int (formato PyMuPDF) a hexadecimal."""
+    r = (color_int >> 16) & 255
+    g = (color_int >> 8) & 255
+    b = color_int & 255
+    return f"#{r:02X}{g:02X}{b:02X}"
+
+
 # Cargar nombres de libros desde el JSON
 with open("versiculos_es.json", "r", encoding="utf-8") as f:
     libros_biblia = json.load(f)
@@ -35,6 +43,7 @@ def check_bible_books(pdf_path, versiculo_inicio, update_ui=None):
         libro_actual = None
         estructura_libros = {}
         capitulo_actual = None
+        referencias_paginas = {}
 
         # Buscar formatos en la primera página
         page = doc[0]
@@ -57,7 +66,7 @@ def check_bible_books(pdf_path, versiculo_inicio, update_ui=None):
                     text = span["text"].strip()
                     font_size = span["size"]
                     font_name = span["font"]
-                    color = span["color"]
+                    color = color_a_hex(span["color"])
                     x = span["origin"][0]
                     y = span["origin"][1]
 
@@ -89,7 +98,6 @@ def check_bible_books(pdf_path, versiculo_inicio, update_ui=None):
             texto_normalizado = normalizar_texto(texto_plano)
             all_elements = []
 
-            # Detectar el libro
             libro_encontrado = None
             for nombre_libro in libros_biblia:
                 if normalizar_texto(nombre_libro) in texto_normalizado:
@@ -105,7 +113,6 @@ def check_bible_books(pdf_path, versiculo_inicio, update_ui=None):
                     if libro_actual not in estructura_libros:
                         estructura_libros[libro_actual] = {}
 
-            # Extraer elementos con sus posiciones
             for block in text_info.get("blocks", []):
                 for line in block.get("lines", []):
                     for span in line.get("spans", []):
@@ -126,7 +133,6 @@ def check_bible_books(pdf_path, versiculo_inicio, update_ui=None):
                         if tipo:
                             all_elements.append((tipo, int(text), x, y))
 
-            # Orden: izquierda a derecha, arriba a abajo
             mid_x = page.rect.width / 2
             all_elements.sort(key=lambda el: (el[2] >= mid_x, el[3]))
 
@@ -135,14 +141,52 @@ def check_bible_books(pdf_path, versiculo_inicio, update_ui=None):
                     capitulo_actual = numero
                     if libro_actual and capitulo_actual not in estructura_libros[libro_actual]:
                         estructura_libros[libro_actual][capitulo_actual] = []
+                        referencias_paginas[(libro_actual, capitulo_actual)] = page_number + 1
                 elif tipo == "versiculo" and libro_actual and capitulo_actual:
                     if numero not in estructura_libros[libro_actual][capitulo_actual]:
                         estructura_libros[libro_actual][capitulo_actual].append(numero)
 
         if update_ui:
-            update_ui("✅ Proceso completado.\n")
-            update_ui("\n📚 Estructura recogida de libros, capítulos y versículos:\n")
-            update_ui(json.dumps(estructura_libros, indent=4, ensure_ascii=False))
+            update_ui("\n🔎 Comparando estructura extraída con JSON de referencia...\n")
+
+        for libro, caps_reales in estructura_libros.items():
+            if libro not in libros_biblia:
+                incidents.append(f"📕 Libro inesperado: {libro}")
+                continue
+            caps_esperados = libros_biblia[libro]
+
+            for cap, vers_reales in caps_reales.items():
+                cap_str = str(cap)
+                pagina = referencias_paginas.get((libro, cap), '?')
+                if cap_str not in caps_esperados:
+                    incidents.append(f"📘 Página {pagina}: Capítulo inesperado: {libro} {cap}")
+                    continue
+
+                total_versiculos = caps_esperados[cap_str]
+                vers_esperados = list(range(1, total_versiculos + 1)) if isinstance(total_versiculos, int) else total_versiculos
+
+                if versiculo_inicio == "no":
+                    vers_esperados = [v for v in vers_esperados if v != 1]
+
+                faltan = sorted(set(vers_esperados) - set(vers_reales))
+                sobran = sorted(set(vers_reales) - set(vers_esperados))
+                desordenados = vers_reales != sorted(vers_reales)
+
+                if faltan:
+                    incidents.append(f"❗ Página {pagina}: Faltan versículos en {libro} {cap}: {faltan}")
+                if sobran:
+                    incidents.append(f"❗ Página {pagina}: Sobran versículos en {libro} {cap}: {sobran}")
+                if desordenados:
+                    incidents.append(f"⚠ Página {pagina}: Versículos desordenados en {libro} {cap}")
+
+        for libro in libros_biblia:
+            if libro not in estructura_libros:
+                incidents.append(f"📗 Falta el libro: {libro}")
+
+        if update_ui:
+            update_ui("✅ Comparación completada.\n")
+            for i in incidents:
+                update_ui(f"{i}\n")
 
         return incidents
 

@@ -3,7 +3,7 @@ import check_paginacion  # Importamos la funcionalidad
 import check_libros  # Nueva funcionalidad para comprobar libros
 
 # Variable global para el archivo PDF
-pdf_file = "biblia_prueba.pdf"
+pdf_file = "biblia_prueba2.pdf"
 
 def update_ui(text):
     """Actualiza la interfaz gráfica con mensajes de estado."""
@@ -60,6 +60,7 @@ def comprobar_paginacion():
             result_text.insert(END, f"Página esperada {expected_page} (PDF: {pdf_page}): {issue}\n")
     else:
         result_text.insert(END, "Todas las páginas tienen numeración correcta.\n")
+    
 
 def mostrar_libros():
     """Muestra la pantalla de Comprobación de Libros."""
@@ -87,12 +88,14 @@ def comprobar_libros():
     result_text.delete(1.0, END)  # Limpiar resultados anteriores
     incidents = check_libros.check_bible_books(pdf_file, versiculo_inicio, update_ui)
     
+    '''
     if incidents:
         result_text.insert(END, "Libros con incidencias:\n")
         for issue in incidents:
             result_text.insert(END, f"{issue}\n")
     else:
-        result_text.insert(END, "Todos los libros están correctos.\n")
+        result_text.insert(END, "Todos los libros están correctos.\n")'
+    '''
 
 def agregar_area_resultados():
     """Agrega la caja de texto con scroll para mostrar resultados."""
