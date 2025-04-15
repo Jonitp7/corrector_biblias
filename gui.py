@@ -3,7 +3,7 @@ import check_paginacion  # Importamos la funcionalidad
 import check_libros  # Nueva funcionalidad para comprobar libros
 
 # Variable global para el archivo PDF
-pdf_file = "biblia_prueba.pdf"
+pdf_file = "biblia_prueba2.pdf"
 
 def update_ui(text):
     """Actualiza la interfaz gráfica con mensajes de estado."""

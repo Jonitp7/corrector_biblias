@@ -93,7 +93,7 @@ def check_page_numbers(pdf_path, alignment="top_center", start_page=1, start_pag
                 incidents.append((expected_page_number, pdf_page_number, "Sin número o formato incorrecto"))
             
             if update_ui:
-                update_ui(f"Página esperada {expected_page_number} (PDF: {pdf_page_number}) - Números encontrados: {[(num, y, x) for num, y, x in numbers_with_position]}\n")
+                update_ui(f"Página esperada {expected_page_number} (PDF: {pdf_page_number}) - Números encontrados: {[(num, round(y, 2), round(x, 2)) for num, y, x in numbers_with_position]}\n")
         
         if update_ui:
             update_ui("Proceso completado.\n")
