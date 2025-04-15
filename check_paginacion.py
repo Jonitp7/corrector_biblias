@@ -2,45 +2,51 @@ import fitz  # PyMuPDF para extraer información detallada
 import re    # Para encontrar números en el texto
 import time  # Para simular carga
 
+def int_to_rgb(color_int):
+    r = (color_int >> 16) & 255
+    g = (color_int >> 8) & 255
+    b = color_int & 255
+    return (r, g, b)
+
+def color_similar(c1, c2, tolerance=10):
+    r1, g1, b1 = int_to_rgb(c1)
+    r2, g2, b2 = int_to_rgb(c2)
+    return all(abs(a - b) <= tolerance for a, b in zip((r1, g1, b1), (r2, g2, b2)))
+
 def check_page_numbers(pdf_path, alignment="top_center", start_page=1, start_page_option="primera", update_ui=None):
     try:
         if update_ui:
             update_ui("Cargando... Por favor, espere.\n")
-        time.sleep(1)  # Simula un pequeño tiempo de carga
+        time.sleep(1)
         
         doc = fitz.open(pdf_path)
         incidents = []
-        pagination_style = None  # Almacenar fuente, tamaño y color del número de paginación
+        pagination_style = None
         
-        # Definir desde qué página empieza la numeración
         start_page_index = 0 if start_page_option == "primera" else 1
-        
-        # Detectar la fuente, tamaño y color del primer número de paginación basado en la entrada del usuario
         first_page = doc[start_page_index]
         text_info = first_page.get_text("dict")
-        detected_number = None
-        
         numbers_with_position = []
+
         for block in text_info["blocks"]:
             for line in block.get("lines", []):
                 for span in line.get("spans", []):
                     text = span["text"].strip()
-                    font_size = span["size"]  # Tamaño de fuente
-                    font_name = span["font"]  # Nombre de la fuente
-                    color = span["color"]  # Color del texto
-                    x_position = span["origin"][0]  # Posición horizontal
-                    y_position = span["origin"][1]  # Posición vertical
-                    
-                    text_cleaned = re.search(r'\d+', text)  # Buscar el primer número en el texto
+                    font_size = span["size"]
+                    font_name = span["font"]
+                    color = span["color"]
+                    x_position = span["origin"][0]
+                    y_position = span["origin"][1]
+
+                    text_cleaned = re.search(r'\d+', text)
                     if text_cleaned and int(text_cleaned.group()) == start_page:
                         numbers_with_position.append((int(text_cleaned.group()), y_position, x_position, font_size, font_name, color))
         
-        # Seleccionar el número según la posición indicada
         if numbers_with_position:
             if "top" in alignment:
-                numbers_with_position.sort(key=lambda x: x[1])  # Más arriba en la página
+                numbers_with_position.sort(key=lambda x: x[1])
             else:
-                numbers_with_position.sort(key=lambda x: -x[1])  # Más abajo en la página
+                numbers_with_position.sort(key=lambda x: -x[1])
             
             top_number = numbers_with_position[0]
             pagination_style = {
@@ -53,51 +59,56 @@ def check_page_numbers(pdf_path, alignment="top_center", start_page=1, start_pag
             if update_ui:
                 update_ui("No se pudo detectar el formato del número de paginación en la primera página de numeración.\n")
             return []
-        
+
         for page_number in range(start_page_index, len(doc)):
             if update_ui:
                 update_ui(f"Procesando página {page_number + 1} de {len(doc)}...\n")
-            expected_page_number = start_page + (page_number - start_page_index)  # Ajustar número esperado según inicio
-            pdf_page_number = page_number + 1  # Página real del PDF
+            expected_page_number = start_page + (page_number - start_page_index)
+            pdf_page_number = page_number + 1
             page = doc[page_number]
             text_info = page.get_text("dict")
             numbers_with_position = []
-            
-            # Extraer números con su información de fuente, tamaño y color
+
             for block in text_info["blocks"]:
                 for line in block.get("lines", []):
                     for span in line.get("spans", []):
                         text = span["text"].strip()
-                        y_position = span["origin"][1]  # Posición vertical del número
-                        x_position = span["origin"][0]  # Posición horizontal del número
-                        font_size = span["size"]  # Tamaño de fuente
-                        font_name = span["font"]  # Nombre de la fuente
-                        color = span["color"]  # Color del texto
-                        
-                        text_cleaned = re.search(r'\d+', text)  # Buscar el primer número en el texto
+                        y_position = span["origin"][1]
+                        x_position = span["origin"][0]
+                        font_size = span["size"]
+                        font_name = span["font"]
+                        color = span["color"]
+
+                        text_cleaned = re.search(r'\d+', text)
                         if text_cleaned:
                             number = int(text_cleaned.group())
-                            if font_size == pagination_style["size"] and font_name == pagination_style["font"] and color == pagination_style["color"]:
+                            size_tolerance = 4
+                            if (
+                                abs(font_size - pagination_style["size"]) <= size_tolerance and
+                                font_name == pagination_style["font"] and
+                                color_similar(color, pagination_style["color"])
+                            ):
                                 numbers_with_position.append((number, y_position, x_position))
-            
+
             if "top" in alignment:
-                numbers_with_position.sort(key=lambda x: x[1])  # Más arriba
+                numbers_with_position.sort(key=lambda x: x[1])
             else:
-                numbers_with_position.sort(key=lambda x: -x[1])  # Más abajo
-            
+                numbers_with_position.sort(key=lambda x: -x[1])
+
             if numbers_with_position:
-                top_number = numbers_with_position[0]  # Número con la posición deseada
+                top_number = numbers_with_position[0]
                 if top_number[0] != expected_page_number:
                     incidents.append((expected_page_number, pdf_page_number, f"Número incorrecto: {top_number[0]}"))
             else:
                 incidents.append((expected_page_number, pdf_page_number, "Sin número o formato incorrecto"))
-            
+
             if update_ui:
                 update_ui(f"Página esperada {expected_page_number} (PDF: {pdf_page_number}) - Números encontrados: {[(num, round(y, 2), round(x, 2)) for num, y, x in numbers_with_position]}\n")
-        
+
         if update_ui:
             update_ui("Proceso completado.\n")
         return incidents
+
     except Exception as e:
         if update_ui:
             update_ui(f"Error al procesar el PDF: {e}\n")
