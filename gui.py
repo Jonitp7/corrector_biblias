@@ -87,14 +87,6 @@ def comprobar_libros():
     result_text.delete(1.0, END)  # Limpiar resultados anteriores
     incidents = check_libros.check_bible_books(pdf_file, versiculo_inicio, update_ui)
     
-    """
-    if incidents:
-        result_text.insert(END, "Libros con incidencias:\n")
-        for issue in incidents:
-            result_text.insert(END, f"{issue}\n")
-    else:
-        result_text.insert(END, "Todos los libros están correctos.\n")
-    """
 def agregar_area_resultados():
     """Agrega la caja de texto con scroll para mostrar resultados."""
     frame_result = Frame(ventana)
@@ -136,7 +128,8 @@ def pantalla_principal():
 # Configuración de la ventana principal
 ventana = Tk()
 ventana.title("Asistente de Corrección")
-ventana.geometry("1200x800")
+ventana.state("zoomed")
+
 
 # Variables globales
 alignment_var = StringVar(value="top_center")
