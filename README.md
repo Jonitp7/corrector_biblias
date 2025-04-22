@@ -28,6 +28,43 @@ Este módulo se encarga de verificar la estructura completa de la Biblia. Se ana
 - Se informa si hay versículos faltantes, sobrantes o desordenados.
 - También detecta títulos clave como "LA CREACIÓN".
 
+## Salida por consola (Tkinter)
+
+Toda la información y el resultado de las comprobaciones se muestra en un área de texto con scroll en la interfaz gráfica. A continuación se explican los diferentes tipos de mensajes que pueden aparecer:
+
+### Mensajes informativos
+
+Estos indican avances normales del proceso, por ejemplo:
+
+```
+✅ Detectado 'LA CREACIÓN' en la primera página.
+📖 Página 1: Detectado capítulo 1 con formato {'size': 20.5, 'font': 'Times-Bold', 'color': '#000000'}
+📖 Formato de referencia de versículo: {'size': 10.0, 'font': 'Times-Roman', 'color': '#000000'}
+🔖 Página 10: Nuevo libro detectado → Éxodo
+🔎 Comparando estructura extraída con JSON de referencia...
+✅ Comparación completada.
+```
+
+### Mensajes de advertencia o errores detectados
+
+El sistema reporta errores estructurales como:
+
+```
+❗ Faltan versículos en Génesis 2 (página 5): [15, 16]
+❗ Sobran versículos en Levítico 3 (página 120): [23]
+⚠ Versículos desordenados en Éxodo 1 (página 12)
+📘 Capítulo inesperado: Job 43 (página 210)
+📗 Falta el libro: Apocalipsis
+```
+
+### Errores técnicos
+
+Si ocurre un fallo en el procesamiento del PDF:
+
+```
+❌ Error al procesar el PDF: no se puede abrir el archivo...
+```
+
 ## Requisitos
 - Python 3.x
 - Bibliotecas: `PyMuPDF`, `tkinter`, `re`, `unicodedata`, `json`
